@@ -16,6 +16,7 @@ allprojects {
 Add to your app module build.gradle
 ```gradle
 dependencies {
+        implementation 'com.github.AlexDeww:nio-socket-tcp-client:4.2.4'
         implementation 'com.github.AlexDeww:remote-tcp-logger:1.0'
 }
 ```

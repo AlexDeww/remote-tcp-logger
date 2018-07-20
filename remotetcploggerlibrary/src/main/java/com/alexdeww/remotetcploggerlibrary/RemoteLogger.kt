@@ -116,10 +116,12 @@ object RemoteLogger {
         loggerClient = RemoteLoggerClient(config.host, config.port, false, 8192, 5000, PacketProtocol(), PacketSerializer(), object : NIOSocketTcpClientListener<BasePacket> {
             override fun onConnected(client: NIOSocketTCPClient<BasePacket>) { processSend() }
             override fun onDisconnected(client: NIOSocketTCPClient<BasePacket>) {}
-            override fun onError(client: NIOSocketTCPClient<BasePacket>, state: NIOSocketWorkerState, error: Throwable) {}
+            override fun onError(client: NIOSocketTCPClient<BasePacket>, state: NIOSocketWorkerState, error: Throwable) {
+                Log.e(TAG, "Error occurred, state: $state", error)
+            }
             override fun onPacketReceived(client: NIOSocketTCPClient<BasePacket>, packet: BasePacket) {}
         })
-        loggerClient.connect()
+        loggerClient.startConnection()
     }
 
 }

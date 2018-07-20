@@ -8,6 +8,7 @@ import com.alexdeww.niosockettcpclientlib.core.NIOSocketOperationResult
 import com.alexdeww.niosockettcpclientlib.core.NIOSocketWorkerState
 import com.alexdeww.niosockettcpclientlib.core.NIOTcpSocketWorker
 import com.alexdeww.niosockettcpclientlib.core.safeCall
+import com.alexdeww.niosockettcpclientlib.exception.AlreadyConnected
 import com.alexdeww.niosockettcpclientlib.exception.Disconnected
 import com.alexdeww.remotetcploggerlibrary.core.packets.BasePacket
 import com.alexdeww.remotetcploggerlibrary.core.packets.server.S1PacketWriteLog
@@ -99,11 +100,6 @@ class RemoteLoggerClient(
         reconnect()
     }
 
-    override fun onError(socket: NIOTcpSocketWorker, state: NIOSocketWorkerState, error: Throwable, data: ByteArray?) {
-        super.onError(socket, state, error, data)
-        if (state == NIOSocketWorkerState.CONNECTING) reconnect()
-    }
-
     override fun doOnPacketReceived(packet: BasePacket) {
         executor.execute {
             waitResponse.remove(packet.uid)?.also {
@@ -123,8 +119,21 @@ class RemoteLoggerClient(
         }
     }
 
+    fun startConnection() {
+        reconnect()
+    }
+
     private fun reconnect() {
-        executor.schedule({ connect() }, RECONNECT_INTERVAL, TimeUnit.SECONDS)
+        executor.schedule({
+            try {
+                connect()
+            } catch (e: AlreadyConnected) {
+                //ignore
+            } catch (e: Throwable) {
+                safeCall { clientListener?.onError(this, NIOSocketWorkerState.CONNECTING, e) }
+                reconnect()
+            }
+        }, RECONNECT_INTERVAL, TimeUnit.SECONDS)
     }
 
 }

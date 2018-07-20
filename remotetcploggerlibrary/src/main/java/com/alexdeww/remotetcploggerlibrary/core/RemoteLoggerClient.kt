@@ -31,7 +31,7 @@ class RemoteLoggerClient(
         private const val THREAD_NAME = "RemoteLoggerClientThread"
         private const val MSG_NOT_CONNECTED = "Not connected"
         private const val MSG_RESPONSE_TIMEOUT = "Response timeout"
-        private const val MSG_REQUEST_TIMEOUT = "Response timeout"
+        private const val MSG_REQUEST_TIMEOUT = "Request timeout"
         private const val REQUEST_TIMEOUT = 30L //seconds
         private const val RESPONSE_TIMEOUT = 30L //seconds
         private const val RECONNECT_INTERVAL = 10L //seconds

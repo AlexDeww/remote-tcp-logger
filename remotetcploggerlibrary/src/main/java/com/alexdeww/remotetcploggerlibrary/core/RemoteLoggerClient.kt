@@ -14,6 +14,7 @@ import com.alexdeww.remotetcploggerlibrary.core.packets.BasePacket
 import com.alexdeww.remotetcploggerlibrary.core.packets.server.S1PacketWriteLog
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
+import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 
 class RemoteLoggerClient(
@@ -43,12 +44,14 @@ class RemoteLoggerClient(
     )
 
     private val waitResponse: HashMap<Long, WaitResponseItem> = hashMapOf()
-    private val executor = Executors.newSingleThreadScheduledExecutor {
-        Thread(it).also {
-            it.name = THREAD_NAME
-            it.isDaemon = Thread.currentThread().isDaemon
+    private val executor = Executors.newSingleThreadScheduledExecutor { runnable ->
+        Thread(runnable).apply {
+            name = THREAD_NAME
+            isDaemon = Thread.currentThread().isDaemon
         }
     }
+    private var reconnectTask: ScheduledFuture<*>? = null
+    private var isStopConnection = true
 
     private inner class OperationWithResponse(
             val packet: BasePacket,
@@ -111,6 +114,8 @@ class RemoteLoggerClient(
     }
 
     fun sendLog(loggerId: String, tag: String, level: Int, message: String, time: Long, result: NIOSocketOperationResult) {
+        if (isStopConnection) return
+
         executor.execute {
             val packet = S1PacketWriteLog(loggerId, tag, level, message, time)
             if (!sendPacket(packet, OperationWithResponse(packet, result))) {
@@ -120,13 +125,24 @@ class RemoteLoggerClient(
     }
 
     fun startConnection() {
+        isStopConnection = false
         reconnect()
     }
 
+    fun stopConnection() {
+        isStopConnection = true
+        reconnectTask?.cancel(true)
+        reconnectTask = null
+        forceDisconnect()
+    }
+
     private fun reconnect() {
-        executor.schedule({
+        if (isStopConnection) return
+
+        reconnectTask = executor.schedule({
             try {
                 connect()
+                if (isStopConnection) forceDisconnect()
             } catch (e: AlreadyConnected) {
                 //ignore
             } catch (e: Throwable) {

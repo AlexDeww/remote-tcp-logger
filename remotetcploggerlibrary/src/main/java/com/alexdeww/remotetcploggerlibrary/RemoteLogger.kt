@@ -38,6 +38,10 @@ object RemoteLogger {
     private var messageBufferCount = AtomicInteger(0)
     private var isSending = AtomicBoolean(false)
     private val messagesBuffer: Queue<LogMessage> = ConcurrentLinkedQueue()
+    private var _isStarted = false
+
+    val isStarted: Boolean
+        get() = _isStarted
 
     fun initialize(config: RemoteLoggerConfig) {
         if (isInit) return
@@ -51,11 +55,23 @@ object RemoteLogger {
         this.loggerId = loggerId
     }
 
+    fun start() {
+        if (!checkInit()) return
+
+        _isStarted = true
+        loggerClient.startConnection()
+    }
+
+    fun stop() {
+        if (!checkInit()) return
+
+        _isStarted = false
+        loggerClient.stopConnection()
+    }
+
     fun writeLog(tag: String, message: String?, level: Int, tr: Throwable? = null) {
-        if (!isInit) {
-            Log.e(TAG, "Logger is not initialized!!!")
-            return
-        }
+        if (!checkInit()) return
+
         try {
             val msg = "$message${if (tr != null) "\n${Log.getStackTraceString(tr)}" else ""}"
             if (!addMessage(LogMessage(tag, level, msg, Date().time))) {
@@ -93,6 +109,14 @@ object RemoteLogger {
         return true
     }
 
+    private fun checkInit(): Boolean {
+        if (!isInit) {
+            Log.e(TAG, "Logger is not initialized!!!")
+            return false
+        }
+        return true
+    }
+
     private fun processSend() {
         isSending.set(true)
         if (!loggerClient.isConnected) return //если нет подключения, выйти и ожидать события подключения, затем запустить цикл отправки
@@ -121,7 +145,6 @@ object RemoteLogger {
             }
             override fun onPacketReceived(client: NIOSocketTCPClient<BasePacket>, packet: BasePacket) {}
         })
-        loggerClient.startConnection()
     }
 
 }
